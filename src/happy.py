@@ -7,9 +7,13 @@ mongo = MongoClient()
 db = mongo.happydb
 city = db.city
 
-print mongo, db, city
-
 cityPathname = "/Users/philpot/Documents/project/happy/gdata/Resto-cities.tsv"
+
+try:
+    db.city.drop()
+except:
+    pass
+
 def loadCity():
     with open(cityPathname, 'rb') as tsvin:
         tsvin = csv.reader(tsvin, delimiter='\t')
@@ -39,7 +43,8 @@ def loadCity():
             except:
                 pass
             print "inserting %s" % (d)
-            city.insert_one(d)
+            # city.insert_one(d)
+            city.update_one(d, {"$set": d}, True)
 
 resto = db.resto
 
@@ -64,19 +69,32 @@ def loadResto():
                  "seedScore": seedScore}
             try:
                 d["lat"] = float(lat)
-            except:
-                pass
+            except Exception as e:
+                print e
             try:
                 d["lon"] = float(lon)
-            except:
+            except Exception as e:
+                pass
+            try:
+                d["loc"] = {"type": "Point",
+                            "coordinates": [d["lon"], d["lat"]]}
+            except Exception as e:
                 pass
             try:
                 d["zip"] = "%05d" % int(zip)
-            except:
+            except Exception as e:
                 pass
             try:
                 d["seedZip"] = "%05d" % int(seedZip)
-            except:
+            except Exception as e:
                 pass
             print "inserting %s" % (d)
-            resto.insert_one(d)
+            # resto.insert_one(d)
+            resto.update_one(d, {"$set": d}, True)
+
+db.resto.ensure_index( [ ("loc", "2dsphere") ] )
+
+db.locs.find({"loc": {"$near": {"type": "Point", "coordinates": [10,11]}}}).limit(3)
+
+for doc in db.resto.find({"loc": {"$geoNear": {"type": "Point", "coordinates": [-95.88642, 36.010754]}}}).limit(10):
+    print doc
