@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import sys
 import csv
 from pymongo import MongoClient
 
@@ -8,11 +9,6 @@ db = mongo.happydb
 city = db.city
 
 cityPathname = "/Users/philpot/Documents/project/happy/gdata/Resto-cities.tsv"
-
-try:
-    db.city.drop()
-except:
-    pass
 
 def loadCity():
     with open(cityPathname, 'rb') as tsvin:
@@ -45,6 +41,34 @@ def loadCity():
             print "inserting %s" % (d)
             # city.insert_one(d)
             city.update_one(d, {"$set": d}, True)
+
+cityLocationPathname = "/Users/philpot/Documents/project/happy/geocode/aux.csv"
+
+def loadCityLocations():
+    with open(cityLocationPathname, 'rb') as csvin:
+        csvin = csv.reader(csvin)
+        for line in csvin:
+            try:
+                (cityState, latitude, longitude) = line
+                (cityName, stateName) = cityState.split(',', 1)
+                cityName = cityName.strip()
+                latitude = float(latitude)
+                longitude = float(longitude)
+            except:
+                continue
+            loc = {"type": "Point",
+                   "coordinates": [longitude, latitude]}
+            try:
+                print >> sys.stderr, "Try to update %s with %s" % ({"coreCity": cityName, "coreState": stateName}, 
+                                                                   loc)
+                v = city.update({"coreCity": cityName, "coreState": stateName}, 
+                                {"$set": {"loc": loc}},
+                                False)
+                print v
+            except Exception as e:
+                print >> sys.stderr, "Not able to update based on %s" % (cityState)
+                print >> sys.stderr, "[%s]" % e
+
 
 resto = db.resto
 
@@ -98,3 +122,4 @@ db.locs.find({"loc": {"$near": {"type": "Point", "coordinates": [10,11]}}}).limi
 
 for doc in db.resto.find({"loc": {"$geoNear": {"type": "Point", "coordinates": [-95.88642, 36.010754]}}}).limit(10):
     print doc
+
