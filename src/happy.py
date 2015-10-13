@@ -7,8 +7,8 @@ from pymongo import MongoClient
 mongo = MongoClient()
 db = mongo.happydb
 
-city = db.city
-db.city.ensure_index( [ ("loc", "2dsphere") ] )
+city = db.cities
+db.cities.ensure_index( [ ("loc", "2dsphere") ] )
 
 resto = db.resto
 db.resto.ensure_index( [ ("loc", "2dsphere") ] )
@@ -78,9 +78,9 @@ def loadCityLocations(pathname=cityLocationPathname):
 
 restoPathname = "/Users/philpot/Documents/project/happy/gdata/Resto-harvested.tsv"
 
-def loadResto():
+def loadResto(pathname=restoPathname):
     """Hooters 3340 Mowry Ave, Fremont CA      94538   (510) 797-9464  37.552544       -121.98513      Hooters 100     95351"""
-    with open(restoPathname, 'rb') as tsvin:
+    with open(pathname, 'rb') as tsvin:
         tsvin = csv.reader(tsvin, delimiter='\t')
         for line in tsvin:
             (name, streetAddress, city, state, zip, phone, lat, lon, seedName, seedScore, seedZip) = line
@@ -116,6 +116,28 @@ def loadResto():
             # resto.insert_one(d)
             resto.update_one(d, {"$set": d}, True)
 
-for doc in db.resto.find({"loc": {"$geoNear": {"type": "Point", "coordinates": [-95.88642, 36.010754]}}}).limit(10):
-    print doc
+def query(radiusMeters=10000, limit=None,
+          lat=None, lon=None,
+          city=None, state=None):
+    def findCands(lon, lat):
+        # this syntax is not correct
+        q = {"loc": {"$near": {"$geometry": {"type": "Point", "coordinates": [lon, lat]}},
+                    "maxDistance": radiusMeters}}
+        if limit:
+            q["loc"]["limit"] = limit
+        return db.resto.find(q)
+    if lat and lon:
+        cands = findCands(lon, lat)
+    elif city and state:
+        centerPoint = db.cities.find_one({"coreCity": city, "coreState": state}, {"loc": 1, "_id": 0})
+        lat, lon = centerPoint.get("coordinates")
+        cands = findCands(lon, lat)
+    else:
+        return None
+    print cands
+    for cand in cands:
+        print cand
+
+# for doc in db.resto.find({"loc": {"$geoNear": {"type": "Point", "coordinates": [-95.88642, 36.010754]}}}).limit(10):
+#     print doc
 
