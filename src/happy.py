@@ -52,6 +52,7 @@ def loadCityLocations():
                 (cityState, latitude, longitude) = line
                 (cityName, stateName) = cityState.split(',', 1)
                 cityName = cityName.strip()
+                stateName = stateName.strip()
                 latitude = float(latitude)
                 longitude = float(longitude)
             except:
@@ -64,7 +65,7 @@ def loadCityLocations():
                 v = city.update({"coreCity": cityName, "coreState": stateName}, 
                                 {"$set": {"loc": loc}},
                                 False)
-                print v
+                print "Update_one result %s" % v
             except Exception as e:
                 print >> sys.stderr, "Not able to update based on %s" % (cityState)
                 print >> sys.stderr, "[%s]" % e
@@ -117,8 +118,6 @@ def loadResto():
             resto.update_one(d, {"$set": d}, True)
 
 db.resto.ensure_index( [ ("loc", "2dsphere") ] )
-
-db.locs.find({"loc": {"$near": {"type": "Point", "coordinates": [10,11]}}}).limit(3)
 
 for doc in db.resto.find({"loc": {"$geoNear": {"type": "Point", "coordinates": [-95.88642, 36.010754]}}}).limit(10):
     print doc
