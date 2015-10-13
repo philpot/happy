@@ -6,12 +6,17 @@ from pymongo import MongoClient
 
 mongo = MongoClient()
 db = mongo.happydb
+
 city = db.city
+db.city.ensure_index( [ ("loc", "2dsphere") ] )
+
+resto = db.resto
+db.resto.ensure_index( [ ("loc", "2dsphere") ] )
 
 cityPathname = "/Users/philpot/Documents/project/happy/gdata/Resto-cities.tsv"
 
-def loadCity():
-    with open(cityPathname, 'rb') as tsvin:
+def loadCity(pathname=cityPathname):
+    with open(pathname, 'rb') as tsvin:
         tsvin = csv.reader(tsvin, delimiter='\t')
         for line in tsvin:
             (rank, typeCode, name, pop, prevpop, delta, coreCity, coreState, coreZip) = line
@@ -44,8 +49,8 @@ def loadCity():
 
 cityLocationPathname = "/Users/philpot/Documents/project/happy/geocode/aux.csv"
 
-def loadCityLocations():
-    with open(cityLocationPathname, 'rb') as csvin:
+def loadCityLocations(pathname=cityLocationPathname):
+    with open(pathname, 'rb') as csvin:
         csvin = csv.reader(csvin)
         for line in csvin:
             try:
@@ -71,19 +76,13 @@ def loadCityLocations():
                 print >> sys.stderr, "[%s]" % e
 
 
-resto = db.resto
-
-LINE = None
-
-
 restoPathname = "/Users/philpot/Documents/project/happy/gdata/Resto-harvested.tsv"
+
 def loadResto():
     """Hooters 3340 Mowry Ave, Fremont CA      94538   (510) 797-9464  37.552544       -121.98513      Hooters 100     95351"""
-    global LINE
     with open(restoPathname, 'rb') as tsvin:
         tsvin = csv.reader(tsvin, delimiter='\t')
         for line in tsvin:
-            LINE = line
             (name, streetAddress, city, state, zip, phone, lat, lon, seedName, seedScore, seedZip) = line
             d = {"name": name,
                  "streetAddress": streetAddress,
@@ -116,8 +115,6 @@ def loadResto():
             print "inserting %s" % (d)
             # resto.insert_one(d)
             resto.update_one(d, {"$set": d}, True)
-
-db.resto.ensure_index( [ ("loc", "2dsphere") ] )
 
 for doc in db.resto.find({"loc": {"$geoNear": {"type": "Point", "coordinates": [-95.88642, 36.010754]}}}).limit(10):
     print doc
